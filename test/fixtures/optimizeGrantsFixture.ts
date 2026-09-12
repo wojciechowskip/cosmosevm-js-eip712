@@ -1,11 +1,11 @@
 import { OptimizeGrantsParams, SignContext, ChainConfig, EIP712TypedData } from '../../src/types';
 
 /**
- * Captured VERBATIM from polli-eip712-service's (Go) /build endpoint,
- * smoke-tested live against KiiChain mainnet (real account 50203,
- * sequence advanced to 1 after a prior real broadcast -- see that repo's
- * README.md and this library's own README for provenance). This is the
- * ground truth this library's typedData construction is verified against.
+ * Captured VERBATIM from a reference Go implementation's typed-data output,
+ * smoke-tested live against KiiChain mainnet (real account 50203, sequence
+ * advanced to 1 after a prior real broadcast -- see this library's own
+ * README for provenance). This is the ground truth this library's typedData
+ * construction is verified against.
  */
 
 export const FIXTURE_PARAMS: OptimizeGrantsParams = {

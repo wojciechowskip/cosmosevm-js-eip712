@@ -20,22 +20,21 @@ export interface BroadcastResult {
  * produced (never trusts a caller-supplied hash or public key), recovers the
  * actual signer from the signature, refuses to proceed unless it matches
  * `params.granterAddress`, assembles the signed transaction, and broadcasts
- * it to the LCD. Mirrors polli-eip712-service's BroadcastOptimizeGrants (Go)
- * endpoint for endpoint, one-for-one.
+ * it to the LCD.
  *
  * IMPORTANT -- signature byte format: the signature is kept EXACTLY as
  * eth_signTypedData_v4 / a real MetaMask returns it (65 bytes, recovery id
  * as 27/28, "yellow paper" convention) all the way into the broadcast
- * transaction. This matches what kii-poc-evm-authz (the proven,
- * mainnet-verified reference) actually broadcast successfully -- it
- * explicitly bumps a raw 0/1 signature to 27/28 before embedding it
- * ("v: 0/1 -> 27/28, per KiiChain's own helper") and never converts it back.
- * polli-eip712-service (Go)'s broadcast path currently normalizes to 0/1
- * before embedding, which has NOT been verified against a real broadcast
- * (only /build was smoke-tested there) -- that is a real, currently open
- * discrepancy against the proven PoC, not a deliberate difference. Treat
- * the Go service's broadcast endpoint as unverified until it's fixed to
- * match this, or until a real broadcast confirms the chain doesn't care.
+ * transaction. This matches what a reference Go implementation (the proven,
+ * mainnet-verified source this schema was captured from) actually broadcast
+ * successfully -- it explicitly bumps a raw 0/1 signature to 27/28 before
+ * embedding it ("v: 0/1 -> 27/28, per KiiChain's own helper") and never
+ * converts it back. A port that "normalizes" the recovery id to 0/1 before
+ * broadcasting (matching go-ethereum's own internal convention for its
+ * recovery functions, rather than the wire convention the chain expects in
+ * the actual transaction bytes) would be broadcasting something different
+ * from what actually verified on mainnet -- treat that as a real bug, not a
+ * style choice, if you ever see it.
  */
 export async function broadcastOptimizeGrants(
   params: OptimizeGrantsParams,

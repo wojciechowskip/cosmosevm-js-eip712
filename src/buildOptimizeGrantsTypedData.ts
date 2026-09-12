@@ -9,13 +9,13 @@ import { OptimizeGrantsParams, SignContext, ChainConfig, EIP712TypedData } from 
  * own `eip712.WrapTxToTypedData` (Go, ~1500-2500 LOC across encoding/
  * preprocess/type-mapping files) is that, and porting it was judged not
  * worth the risk for one fixed message shape. Instead, this schema was
- * captured VERBATIM from `polli-eip712-service`'s /build endpoint,
+ * captured VERBATIM from a reference Go implementation's typed-data output,
  * smoke-tested live against KiiChain mainnet (see
  * test/fixtures/optimizeGrantsFixture.ts for the full captured example:
  * real account 50203, sequence advanced to 1 after a prior real
  * broadcast). If cosmos/evm's type-naming convention ever changes for
  * this exact message combination, this schema needs re-verifying against
- * a fresh /build call -- it will not silently drift, since a mismatch
+ * a fresh captured example -- it will not silently drift, since a mismatch
  * fails signature verification cleanly rather than misbehaving.
  *
  * The type names' numeric suffixes are not arbitrary: cosmos/evm's

@@ -1,9 +1,10 @@
 # cosmos-js-eip712
 
-Small JS/TS library for signing KiiChain's "optimize grants" bundle (staking
-redelegate authz, bank send authz, an unlimited feegrant -- the same three
-messages `polli-cosmos-be` already grants via Keplr) with an EVM wallet
-(MetaMask) instead, using `eth_signTypedData_v4`.
+Small JS/TS library for signing an "optimize grants" bundle on KiiChain --
+a staking redelegate authz grant, a bank send authz grant, and an unlimited
+feegrant, all to the same grantee, in one transaction -- with an EVM wallet
+(MetaMask) via `eth_signTypedData_v4`, instead of a Cosmos wallet like
+Keplr.
 
 ## Why this is narrow, not a generic Cosmos-EVM EIP-712 engine
 
@@ -14,8 +15,8 @@ judged too large and risky a task for what's actually needed here: **one
 fixed, three-message bundle**, always in the same shape.
 
 So instead of porting the generic engine, this library's `types` schema is
-captured **verbatim** from `polli-eip712-service` (the Go service that
-already ports the proven `kii-poc-evm-authz` PoC), smoke-tested live
+captured **verbatim** from a reference Go implementation (built on
+`cosmos/evm`'s own `eip712.WrapTxToTypedData`) that was smoke-tested live
 against KiiChain mainnet, and pinned down with a byte-for-byte test
 (`test/buildOptimizeGrantsTypedData.test.ts` against
 `test/fixtures/optimizeGrantsFixture.ts`, a real captured example: account
@@ -34,19 +35,19 @@ schema -- this is not a general-purpose tool for arbitrary Cosmos messages.
    with a real sign+recover round trip. Public-key recovery itself (once
    you have the correct digest) is still done with `ethers.SigningKey`,
    which is schema-agnostic pure ECDSA math and has no such limitation.
-2. **Signature byte format for the on-chain broadcast is still an open
-   question.** The proven `kii-poc-evm-authz` PoC explicitly bumps the
-   recovery id from 0/1 to 27/28 before embedding the signature in the
-   broadcast transaction, and that broadcast worked on mainnet. This
-   library's `broadcastOptimizeGrants` follows that proven behavior
-   (keeps the signature exactly as `eth_signTypedData_v4` returns it, v as
-   27/28, all the way into the transaction). **`polli-eip712-service`
-   (Go)'s broadcast path currently normalizes to 0/1 before embedding --
-   that's a real, currently-unverified discrepancy against the proven
-   PoC** (its `/broadcast` endpoint has not been smoke-tested against a
-   real signature, only `/build` has). Fix the Go service to match this,
-   or verify on-chain that the chain truly doesn't care which convention
-   is used, before trusting either for a real transaction.
+2. **Signature byte format for the on-chain broadcast matters and is easy
+   to get backwards.** A reference Go implementation that broadcast
+   successfully on mainnet explicitly bumps the recovery id from 0/1 to
+   27/28 before embedding the signature in the transaction, and never
+   converts it back. This library's `broadcastOptimizeGrants` follows that
+   proven behavior -- it keeps the signature exactly as
+   `eth_signTypedData_v4` returns it (v as 27/28) all the way into the
+   transaction. A naive port that "normalizes" the recovery id back to 0/1
+   before broadcasting (matching go-ethereum's own internal convention for
+   its recovery functions) would be broadcasting something different from
+   what actually verified on mainnet -- worth checking explicitly if you
+   port this further, since it's a one-byte difference that's easy to miss
+   and easy to get backwards.
 
 ## Usage
 
@@ -60,7 +61,7 @@ import {
 
 const params = {
   granterAddress: 'kii1...',
-  granteeAddress: 'kii1...', // Polli's optimizer signer
+  granteeAddress: 'kii1...', // the address you're granting permissions to
   transferSpendLimitAkii: '1000000000000000',
   expirySeconds: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
 };

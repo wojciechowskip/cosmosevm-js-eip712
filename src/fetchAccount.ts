@@ -1,5 +1,4 @@
-/** Minimal account-number/sequence read, mirroring polli-eip712-service's
- * fetchAccount (Go) exactly -- same endpoint, same response shape. */
+/** Minimal account-number/sequence read against a Cosmos SDK LCD. */
 export async function fetchAccount(
   lcdUrl: string,
   address: string

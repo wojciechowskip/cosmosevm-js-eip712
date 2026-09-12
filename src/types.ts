@@ -1,27 +1,27 @@
 /**
  * Params for the "optimize grants" bundle -- staking redelegate authz,
  * bank send authz, and an unlimited feegrant, all to the same grantee.
- * Mirrors polli-eip712-service's OptimizeGrantsParams (Go), which this
- * library's fixed typedData shape was verified against on KiiChain
- * mainnet -- see test/fixtures/optimizeGrantsFixture.ts.
+ * This library's fixed typedData shape was verified against a real
+ * example captured on KiiChain mainnet -- see
+ * test/fixtures/optimizeGrantsFixture.ts.
  */
 export interface OptimizeGrantsParams {
   /** bech32 kii1... address of the account granting authority */
   granterAddress: string;
-  /** bech32 kii1... address receiving the grants (Polli's optimizer signer) */
+  /** bech32 kii1... address receiving the grants */
   granteeAddress: string;
   /** SendAuthorization spend limit, in akii (18-decimal, same as wei) */
   transferSpendLimitAkii: string;
   /** Unix seconds since epoch -- when the staking + transfer grants expire.
-   * The feegrant allowance itself never expires, matching production. */
+   * The feegrant allowance itself never expires. */
   expirySeconds: number;
 }
 
 /** Everything besides the message set that goes into the signed bytes.
- * Round-trips unmodified from build to broadcast, mirroring the Go
- * service's SignContext -- so any drift between what was built and what
- * gets broadcast surfaces as a signature-verification failure, not a
- * silently-different signed transaction. */
+ * Round-trips unmodified from build to broadcast -- so any drift between
+ * what was built and what gets broadcast surfaces as a
+ * signature-verification failure, not a silently-different signed
+ * transaction. */
 export interface SignContext {
   accountNumber: string;
   sequence: string;

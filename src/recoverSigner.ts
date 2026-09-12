@@ -37,8 +37,7 @@ export function recoverSigner(digest: Uint8Array, signatureHex: string): Recover
 /**
  * Recovers the signer and throws unless it matches `expectedGranterAddress`
  * -- a signature only recovers to the address that actually produced it,
- * so this is a real integrity check, not a formality. Mirrors
- * polli-eip712-service's BroadcastOptimizeGrants (Go) exactly.
+ * so this is a real integrity check, not a formality.
  */
 export function verifySignerMatchesGranter(
   digest: Uint8Array,

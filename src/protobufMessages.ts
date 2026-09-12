@@ -10,8 +10,7 @@ import { BinaryWriter, WireType } from 'cosmjs-types/binary';
 import { OptimizeGrantsParams } from './types';
 
 /** cosmos.staking.v1beta1.MsgBeginRedelegate -- the ONLY message type the
- * staking grant authorizes, matching production and polli-eip712-service
- * (Go) exactly. */
+ * staking grant authorizes, matching the reference implementation exactly. */
 export const REDELEGATE_MSG_TYPE_URL = '/cosmos.staking.v1beta1.MsgBeginRedelegate';
 
 const AKII_DENOM = 'akii';
@@ -39,8 +38,7 @@ export function encodeEthsecp256k1PubKey(compressedKey: Uint8Array): Any {
 /**
  * Builds the three Any-wrapped messages for the "optimize grants" bundle,
  * in the FIXED order the signed tx must carry them (matches
- * buildOptimizeGrantsTypedData's msg0/msg1/msg2 and
- * polli-eip712-service's BuildOptimizeGrantsMessages exactly).
+ * buildOptimizeGrantsTypedData's msg0/msg1/msg2 exactly).
  */
 export function buildOptimizeGrantsAnyMessages(params: OptimizeGrantsParams): Any[] {
   const expiration = timestampFromUnixSeconds(params.expirySeconds);
@@ -72,8 +70,8 @@ export function buildOptimizeGrantsAnyMessages(params: OptimizeGrantsParams): An
     }).finish(),
   });
 
-  // nil spend_limit + nil expiration = unlimited, no expiry -- matches
-  // production and polli-eip712-service exactly, not a simplification.
+  // nil spend_limit + nil expiration = unlimited, no expiry -- a deliberate
+  // choice matching the reference implementation, not a simplification.
   const feeAllowance = Any.fromPartial({
     typeUrl: '/cosmos.feegrant.v1beta1.BasicAllowance',
     value: BasicAllowance.encode({ spendLimit: [] }).finish(),

@@ -9,7 +9,7 @@ import {
 } from './fixtures/optimizeGrantsFixture';
 
 describe('buildOptimizeGrantsTypedData', () => {
-  it('matches the typedData captured live from polli-eip712-service against KiiChain mainnet, byte for byte', () => {
+  it('matches the typedData captured live from a reference implementation against KiiChain mainnet, byte for byte', () => {
     const result = buildOptimizeGrantsTypedData(FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN);
     expect(result).toEqual(FIXTURE_EXPECTED_TYPED_DATA);
   });
