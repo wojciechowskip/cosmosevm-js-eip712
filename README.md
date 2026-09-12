@@ -1,4 +1,4 @@
-# cosmos-js-eip712
+# cosmos-js-eip712-kii
 
 Small JS/TS library for signing an "optimize grants" bundle on KiiChain --
 a staking redelegate authz grant, a bank send authz grant, and an unlimited
@@ -57,7 +57,7 @@ import {
   fetchAccount,
   buildOptimizeGrantsTypedData,
   broadcastOptimizeGrants,
-} from 'cosmos-js-eip712';
+} from 'cosmos-js-eip712-kii';
 
 const params = {
   granterAddress: 'kii1...',
