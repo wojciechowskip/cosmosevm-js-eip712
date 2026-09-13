@@ -63,6 +63,7 @@ const params = {
   granterAddress: 'kii1...',
   granteeAddress: 'kii1...', // the address you're granting permissions to
   transferSpendLimitAkii: '1000000000000000',
+  transferGrantAllowAddress: 'kii1...', // the ONLY address the transfer grant may send to
   expirySeconds: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
 };
 

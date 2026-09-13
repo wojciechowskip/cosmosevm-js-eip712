@@ -12,6 +12,11 @@ export const FIXTURE_PARAMS: OptimizeGrantsParams = {
   granterAddress: 'kii1dsgu3p4m623ppaw03gddhul535yw3l2tdnuauh',
   granteeAddress: 'kii18nft3gjmryyach4vfhk2kgtm9gj2yk7px63euc',
   transferSpendLimitAkii: '1000000000000000',
+  // Reuses the granter address as the allow_list target -- what a live
+  // typed-data dry-run against cosmos/evm's WrapTxToTypedData was actually
+  // run with (2026-09-13) to confirm allow_list's schema; any valid bech32
+  // address exercises the same shape.
+  transferGrantAllowAddress: 'kii1dsgu3p4m623ppaw03gddhul535yw3l2tdnuauh',
   expirySeconds: 1820000000, // -> 2027-09-03T19:33:20Z
 };
 
@@ -106,6 +111,7 @@ export const FIXTURE_EXPECTED_TYPED_DATA: EIP712TypedData = {
     TypeValueGrantAuthorizationValue0: [{ name: 'msg', type: 'string' }],
     TypeValueGrantAuthorizationValue1: [
       { name: 'spend_limit', type: 'TypeValueGrantAuthorizationValueSpendLimit0[]' },
+      { name: 'allow_list', type: 'string[]' },
     ],
     TypeValueGrantAuthorizationValueSpendLimit0: [
       { name: 'denom', type: 'string' },
@@ -151,7 +157,10 @@ export const FIXTURE_EXPECTED_TYPED_DATA: EIP712TypedData = {
         grant: {
           authorization: {
             type: 'cosmos-sdk/SendAuthorization',
-            value: { spend_limit: [{ denom: 'akii', amount: '1000000000000000' }] },
+            value: {
+              spend_limit: [{ denom: 'akii', amount: '1000000000000000' }],
+              allow_list: ['kii1dsgu3p4m623ppaw03gddhul535yw3l2tdnuauh'],
+            },
           },
           expiration: '2027-09-03T19:33:20Z',
         },

@@ -57,9 +57,10 @@ export function buildOptimizeGrantsAnyMessages(params: OptimizeGrantsParams): An
   });
 
   const spendLimit: Coin[] = [{ denom: AKII_DENOM, amount: params.transferSpendLimitAkii }];
+  const allowList = [params.transferGrantAllowAddress];
   const transferAuthorization = Any.fromPartial({
     typeUrl: '/cosmos.bank.v1beta1.SendAuthorization',
-    value: SendAuthorization.encode({ spendLimit, allowList: [] }).finish(),
+    value: SendAuthorization.encode({ spendLimit, allowList }).finish(),
   });
   const msg1 = Any.fromPartial({
     typeUrl: MsgGrant.typeUrl,

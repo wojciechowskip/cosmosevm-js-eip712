@@ -12,6 +12,11 @@ export interface OptimizeGrantsParams {
   granteeAddress: string;
   /** SendAuthorization spend limit, in akii (18-decimal, same as wei) */
   transferSpendLimitAkii: string;
+  /** The ONLY address the transfer grant may send to (SendAuthorization's
+   * allow_list, one entry). Confirmed via a live typed-data dry-run against
+   * cosmos/evm's own WrapTxToTypedData (2026-09-13) that a populated
+   * allow_list serializes as a bare `string[]`, after `spend_limit`. */
+  transferGrantAllowAddress: string;
   /** Unix seconds since epoch -- when the staking + transfer grants expire.
    * The feegrant allowance itself never expires. */
   expirySeconds: number;

@@ -1,6 +1,6 @@
 {
   "name": "cosmosevm-js-eip712",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "EIP-712 typed-data builder for signing Cosmos SDK authz/feegrant messages with an EVM wallet (MetaMask) on KiiChain and other cosmos/evm-based chains",
   "author": "patrykw <patryk.wojciechowski.dev@gmail.com>",
   "license": "MIT",

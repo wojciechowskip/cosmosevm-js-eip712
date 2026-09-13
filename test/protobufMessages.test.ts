@@ -32,6 +32,7 @@ describe('buildOptimizeGrantsAnyMessages', () => {
     expect(auth1.spendLimit).toEqual([
       { denom: 'akii', amount: FIXTURE_PARAMS.transferSpendLimitAkii },
     ]);
+    expect(auth1.allowList).toEqual([FIXTURE_PARAMS.transferGrantAllowAddress]);
 
     expect(msg2.typeUrl).toBe('/cosmos.feegrant.v1beta1.MsgGrantAllowance');
     const decoded2 = MsgGrantAllowance.decode(msg2.value);

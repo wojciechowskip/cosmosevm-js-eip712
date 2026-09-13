@@ -89,8 +89,14 @@ const OPTIMIZE_GRANTS_TYPES: EIP712TypedData['types'] = {
     { name: 'value', type: 'TypeValueGrantAuthorizationValue1' },
     { name: 'type', type: 'string' },
   ],
+  // allow_list confirmed via a live typed-data dry-run against cosmos/evm's
+  // own WrapTxToTypedData (2026-09-13, real KiiChain mainnet account) --
+  // a populated allow_list is a bare `string[]` (arrays of primitives get
+  // no named element type, unlike Coin[] above), and comes after
+  // spend_limit, matching SendAuthorization's own proto field order.
   TypeValueGrantAuthorizationValue1: [
     { name: 'spend_limit', type: 'TypeValueGrantAuthorizationValueSpendLimit0[]' },
+    { name: 'allow_list', type: 'string[]' },
   ],
   TypeValueGrantAuthorizationValueSpendLimit0: [
     { name: 'denom', type: 'string' },
@@ -183,6 +189,7 @@ export function buildOptimizeGrantsTypedData(
               type: 'cosmos-sdk/SendAuthorization',
               value: {
                 spend_limit: [{ denom: 'akii', amount: params.transferSpendLimitAkii }],
+                allow_list: [params.transferGrantAllowAddress],
               },
             },
             expiration,
