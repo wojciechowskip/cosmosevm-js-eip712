@@ -2,11 +2,11 @@ import { getBytes } from 'ethers';
 import { TxBody, AuthInfo, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
 
-import { OptimizeGrantsParams, SignContext, ChainConfig } from './types';
-import { buildOptimizeGrantsTypedData } from './buildOptimizeGrantsTypedData';
+import { GrantsParams, SignContext, ChainConfig } from './types';
+import { buildGrantsTypedData } from './buildGrantsTypedData';
 import { hashTypedData } from './typedDataHash';
 import { verifySignerMatchesGranter } from './recoverSigner';
-import { buildOptimizeGrantsAnyMessages, encodeEthsecp256k1PubKey } from './protobufMessages';
+import { buildGrantsAnyMessages, encodeEthsecp256k1PubKey } from './protobufMessages';
 
 export interface BroadcastResult {
   httpStatus: number;
@@ -16,7 +16,7 @@ export interface BroadcastResult {
 }
 
 /**
- * Rebuilds the exact same messages and sign bytes buildOptimizeGrantsTypedData
+ * Rebuilds the exact same messages and sign bytes buildGrantsTypedData
  * produced (never trusts a caller-supplied hash or public key), recovers the
  * actual signer from the signature, refuses to proceed unless it matches
  * `params.granterAddress`, assembles the signed transaction, and broadcasts
@@ -36,18 +36,18 @@ export interface BroadcastResult {
  * from what actually verified on mainnet -- treat that as a real bug, not a
  * style choice, if you ever see it.
  */
-export async function broadcastOptimizeGrants(
-  params: OptimizeGrantsParams,
+export async function broadcastGrants(
+  params: GrantsParams,
   signContext: SignContext,
   chain: ChainConfig,
   signatureHex: string
 ): Promise<BroadcastResult> {
-  const typedData = buildOptimizeGrantsTypedData(params, signContext, chain);
+  const typedData = buildGrantsTypedData(params, signContext, chain);
   const digest = hashTypedData(typedData);
 
   const { compressedPubKey } = verifySignerMatchesGranter(digest, signatureHex, params.granterAddress);
 
-  const messages = buildOptimizeGrantsAnyMessages(params);
+  const messages = buildGrantsAnyMessages(params);
   const bodyBytes = TxBody.encode(TxBody.fromPartial({ messages, memo: '' })).finish();
 
   const authInfoBytes = AuthInfo.encode(

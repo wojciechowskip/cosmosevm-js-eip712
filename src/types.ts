@@ -1,25 +1,39 @@
 /**
- * Params for the "optimize grants" bundle -- staking redelegate authz,
- * bank send authz, and an unlimited feegrant, all to the same grantee.
- * This library's fixed typedData shape was verified against a real
- * example captured on KiiChain mainnet -- see
- * test/fixtures/optimizeGrantsFixture.ts.
+ * One grant to include in the batch, in the order it should appear in the
+ * signed transaction. `genericAuthorization` may repeat (e.g. one for
+ * MsgDelegate, one for MsgBeginRedelegate) -- cosmos/evm's EIP-712 encoder
+ * gives every GenericAuthorization the identical {msg: string} shape
+ * regardless of which msg type URL it carries, so repeats share one type
+ * definition rather than minting a new one each time (confirmed via a live
+ * typed-data dry-run against cosmos/evm's own WrapTxToTypedData, 2026-09-14).
+ *
+ * `sendAuthorization` and `feeGrant` are NOT verified for more than one
+ * occurrence each -- that's also all Polli's own native (Keplr) flow ever
+ * batches, so a second occurrence of either is unsupported territory, not a
+ * silent limitation.
  */
-export interface OptimizeGrantsParams {
+export type GrantSpec =
+  | { kind: 'genericAuthorization'; msgTypeUrl: string }
+  | {
+      kind: 'sendAuthorization';
+      spendLimit: { denom: string; amount: string };
+      /** Restricts the grant to sending ONLY to this address (SendAuthorization's
+       * allow_list, one entry) -- omit only if you specifically want an
+       * unrestricted-recipient grant, which is a materially broader permission. */
+      allowAddress?: string;
+    }
+  | { kind: 'feeGrant' };
+
+export interface GrantsParams {
   /** bech32 kii1... address of the account granting authority */
   granterAddress: string;
   /** bech32 kii1... address receiving the grants */
   granteeAddress: string;
-  /** SendAuthorization spend limit, in akii (18-decimal, same as wei) */
-  transferSpendLimitAkii: string;
-  /** The ONLY address the transfer grant may send to (SendAuthorization's
-   * allow_list, one entry). Confirmed via a live typed-data dry-run against
-   * cosmos/evm's own WrapTxToTypedData (2026-09-13) that a populated
-   * allow_list serializes as a bare `string[]`, after `spend_limit`. */
-  transferGrantAllowAddress: string;
-  /** Unix seconds since epoch -- when the staking + transfer grants expire.
-   * The feegrant allowance itself never expires. */
+  /** Unix seconds since epoch -- when authz grants expire. Applies to every
+   * `genericAuthorization`/`sendAuthorization` entry; the feegrant allowance
+   * itself never expires, matching Polli's own native flow. */
   expirySeconds: number;
+  grants: GrantSpec[];
 }
 
 /** Everything besides the message set that goes into the signed bytes.

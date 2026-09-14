@@ -5,17 +5,12 @@ import { SendAuthorization } from 'cosmjs-types/cosmos/bank/v1beta1/authz';
 import { MsgGrantAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/tx';
 import { BasicAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/feegrant';
 
-import {
-  buildOptimizeGrantsAnyMessages,
-  encodeEthsecp256k1PubKey,
-  REDELEGATE_MSG_TYPE_URL,
-  ETHSECP256K1_PUBKEY_TYPE_URL,
-} from '../src/protobufMessages';
-import { FIXTURE_PARAMS } from './fixtures/optimizeGrantsFixture';
+import { buildGrantsAnyMessages, encodeEthsecp256k1PubKey, ETHSECP256K1_PUBKEY_TYPE_URL } from '../src/protobufMessages';
+import { FIXTURE_PARAMS, DEDUP_FIXTURE_PARAMS } from './fixtures/grantsFixture';
 
-describe('buildOptimizeGrantsAnyMessages', () => {
+describe('buildGrantsAnyMessages', () => {
   it('produces 3 messages that decode back to the expected values', () => {
-    const [msg0, msg1, msg2] = buildOptimizeGrantsAnyMessages(FIXTURE_PARAMS);
+    const [msg0, msg1, msg2] = buildGrantsAnyMessages(FIXTURE_PARAMS);
 
     expect(msg0.typeUrl).toBe('/cosmos.authz.v1beta1.MsgGrant');
     const decoded0 = MsgGrant.decode(msg0.value);
@@ -23,22 +18,33 @@ describe('buildOptimizeGrantsAnyMessages', () => {
     expect(decoded0.grantee).toBe(FIXTURE_PARAMS.granteeAddress);
     expect(decoded0.grant.authorization?.typeUrl).toBe('/cosmos.authz.v1beta1.GenericAuthorization');
     const auth0 = GenericAuthorization.decode(decoded0.grant.authorization!.value);
-    expect(auth0.msg).toBe(REDELEGATE_MSG_TYPE_URL);
+    expect(auth0.msg).toBe('/cosmos.staking.v1beta1.MsgBeginRedelegate');
 
     expect(msg1.typeUrl).toBe('/cosmos.authz.v1beta1.MsgGrant');
     const decoded1 = MsgGrant.decode(msg1.value);
     expect(decoded1.grant.authorization?.typeUrl).toBe('/cosmos.bank.v1beta1.SendAuthorization');
     const auth1 = SendAuthorization.decode(decoded1.grant.authorization!.value);
-    expect(auth1.spendLimit).toEqual([
-      { denom: 'akii', amount: FIXTURE_PARAMS.transferSpendLimitAkii },
-    ]);
-    expect(auth1.allowList).toEqual([FIXTURE_PARAMS.transferGrantAllowAddress]);
+    expect(auth1.spendLimit).toEqual([{ denom: 'akii', amount: '1000000000000000' }]);
+    expect(auth1.allowList).toEqual(['kii1dsgu3p4m623ppaw03gddhul535yw3l2tdnuauh']);
 
     expect(msg2.typeUrl).toBe('/cosmos.feegrant.v1beta1.MsgGrantAllowance');
     const decoded2 = MsgGrantAllowance.decode(msg2.value);
     expect(decoded2.allowance?.typeUrl).toBe('/cosmos.feegrant.v1beta1.BasicAllowance');
     const allowance = BasicAllowance.decode(decoded2.allowance!.value);
     expect(allowance.spendLimit).toEqual([]);
+  });
+
+  it('produces 4 messages for the dedup case, preserving each genericAuthorization grant\'s own msgTypeUrl', () => {
+    const messages = buildGrantsAnyMessages(DEDUP_FIXTURE_PARAMS);
+    expect(messages).toHaveLength(4);
+
+    const decoded0 = MsgGrant.decode(messages[0].value);
+    const auth0 = GenericAuthorization.decode(decoded0.grant.authorization!.value);
+    expect(auth0.msg).toBe('/cosmos.staking.v1beta1.MsgDelegate');
+
+    const decoded1 = MsgGrant.decode(messages[1].value);
+    const auth1 = GenericAuthorization.decode(decoded1.grant.authorization!.value);
+    expect(auth1.msg).toBe('/cosmos.staking.v1beta1.MsgBeginRedelegate');
   });
 });
 

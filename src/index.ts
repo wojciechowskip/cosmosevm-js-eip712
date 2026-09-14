@@ -1,18 +1,18 @@
 export {
-  OptimizeGrantsParams,
+  GrantSpec,
+  GrantsParams,
   SignContext,
   ChainConfig,
   KII_MAINNET,
   EIP712TypedData,
 } from './types';
-export { buildOptimizeGrantsTypedData } from './buildOptimizeGrantsTypedData';
+export { buildGrantsTypedData } from './buildGrantsTypedData';
 export { hashTypedData } from './typedDataHash';
 export { recoverSigner, verifySignerMatchesGranter, RecoveredSigner } from './recoverSigner';
 export { fetchAccount } from './fetchAccount';
-export { broadcastOptimizeGrants, BroadcastResult } from './broadcastOptimizeGrants';
+export { broadcastGrants, BroadcastResult } from './broadcastGrants';
 export {
-  buildOptimizeGrantsAnyMessages,
+  buildGrantsAnyMessages,
   encodeEthsecp256k1PubKey,
-  REDELEGATE_MSG_TYPE_URL,
   ETHSECP256K1_PUBKEY_TYPE_URL,
 } from './protobufMessages';

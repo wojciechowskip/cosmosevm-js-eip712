@@ -7,17 +7,7 @@ import { BasicAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/feegrant';
 import { MsgGrantAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/tx';
 import { BinaryWriter, WireType } from 'cosmjs-types/binary';
 
-import { OptimizeGrantsParams } from './types';
-
-/** cosmos.staking.v1beta1.MsgBeginRedelegate -- the ONLY message type the
- * staking grant authorizes, matching the reference implementation exactly. */
-export const REDELEGATE_MSG_TYPE_URL = '/cosmos.staking.v1beta1.MsgBeginRedelegate';
-
-const AKII_DENOM = 'akii';
-
-function timestampFromUnixSeconds(seconds: number) {
-  return { seconds: BigInt(seconds), nanos: 0 };
-}
+import { GrantsParams, GrantSpec } from './types';
 
 /**
  * KiiChain's account pubkey type (`/cosmos.evm.crypto.v1.ethsecp256k1.PubKey`,
@@ -35,56 +25,61 @@ export function encodeEthsecp256k1PubKey(compressedKey: Uint8Array): Any {
   return Any.fromPartial({ typeUrl: ETHSECP256K1_PUBKEY_TYPE_URL, value });
 }
 
-/**
- * Builds the three Any-wrapped messages for the "optimize grants" bundle,
- * in the FIXED order the signed tx must carry them (matches
- * buildOptimizeGrantsTypedData's msg0/msg1/msg2 exactly).
- */
-export function buildOptimizeGrantsAnyMessages(params: OptimizeGrantsParams): Any[] {
-  const expiration = timestampFromUnixSeconds(params.expirySeconds);
+function timestampFromUnixSeconds(seconds: number) {
+  return { seconds: BigInt(seconds), nanos: 0 };
+}
 
-  const stakingAuthorization = Any.fromPartial({
-    typeUrl: '/cosmos.authz.v1beta1.GenericAuthorization',
-    value: GenericAuthorization.encode({ msg: REDELEGATE_MSG_TYPE_URL }).finish(),
-  });
-  const msg0 = Any.fromPartial({
-    typeUrl: MsgGrant.typeUrl,
-    value: MsgGrant.encode({
-      granter: params.granterAddress,
-      grantee: params.granteeAddress,
-      grant: { authorization: stakingAuthorization, expiration },
-    }).finish(),
-  });
+function buildAuthorizationAny(grant: Extract<GrantSpec, { kind: 'genericAuthorization' | 'sendAuthorization' }>): Any {
+  if (grant.kind === 'genericAuthorization') {
+    return Any.fromPartial({
+      typeUrl: '/cosmos.authz.v1beta1.GenericAuthorization',
+      value: GenericAuthorization.encode({ msg: grant.msgTypeUrl }).finish(),
+    });
+  }
 
-  const spendLimit: Coin[] = [{ denom: AKII_DENOM, amount: params.transferSpendLimitAkii }];
-  const allowList = [params.transferGrantAllowAddress];
-  const transferAuthorization = Any.fromPartial({
+  const spendLimit: Coin[] = [{ denom: grant.spendLimit.denom, amount: grant.spendLimit.amount }];
+  const allowList = grant.allowAddress ? [grant.allowAddress] : [];
+  return Any.fromPartial({
     typeUrl: '/cosmos.bank.v1beta1.SendAuthorization',
     value: SendAuthorization.encode({ spendLimit, allowList }).finish(),
   });
-  const msg1 = Any.fromPartial({
-    typeUrl: MsgGrant.typeUrl,
-    value: MsgGrant.encode({
-      granter: params.granterAddress,
-      grantee: params.granteeAddress,
-      grant: { authorization: transferAuthorization, expiration },
-    }).finish(),
-  });
+}
 
-  // nil spend_limit + nil expiration = unlimited, no expiry -- a deliberate
-  // choice matching the reference implementation, not a simplification.
-  const feeAllowance = Any.fromPartial({
-    typeUrl: '/cosmos.feegrant.v1beta1.BasicAllowance',
-    value: BasicAllowance.encode({ spendLimit: [] }).finish(),
-  });
-  const msg2 = Any.fromPartial({
-    typeUrl: MsgGrantAllowance.typeUrl,
-    value: MsgGrantAllowance.encode({
-      granter: params.granterAddress,
-      grantee: params.granteeAddress,
-      allowance: feeAllowance,
-    }).finish(),
-  });
+/**
+ * Builds the Any-wrapped messages for an arbitrary, caller-chosen
+ * combination of grants (see GrantSpec in ./types), in the same order the
+ * signed tx must carry them -- matches buildGrantsTypedData's msg0/msg1/...
+ * exactly.
+ */
+export function buildGrantsAnyMessages(params: GrantsParams): Any[] {
+  const expiration = timestampFromUnixSeconds(params.expirySeconds);
 
-  return [msg0, msg1, msg2];
+  return params.grants.map((grant) => {
+    if (grant.kind === 'feeGrant') {
+      // nil spend_limit = unlimited -- a deliberate choice matching Polli's
+      // native (Keplr) flow, not a simplification.
+      const feeAllowance = Any.fromPartial({
+        typeUrl: '/cosmos.feegrant.v1beta1.BasicAllowance',
+        value: BasicAllowance.encode({ spendLimit: [] }).finish(),
+      });
+      return Any.fromPartial({
+        typeUrl: MsgGrantAllowance.typeUrl,
+        value: MsgGrantAllowance.encode({
+          granter: params.granterAddress,
+          grantee: params.granteeAddress,
+          allowance: feeAllowance,
+        }).finish(),
+      });
+    }
+
+    const authorization = buildAuthorizationAny(grant);
+    return Any.fromPartial({
+      typeUrl: MsgGrant.typeUrl,
+      value: MsgGrant.encode({
+        granter: params.granterAddress,
+        grantee: params.granteeAddress,
+        grant: { authorization, expiration },
+      }).finish(),
+    });
+  });
 }

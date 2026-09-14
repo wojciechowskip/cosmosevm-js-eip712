@@ -5,13 +5,13 @@ import { describe, it, expect } from 'vitest';
 
 import { hashTypedData } from '../src/typedDataHash';
 import { recoverSigner, verifySignerMatchesGranter } from '../src/recoverSigner';
-import { buildOptimizeGrantsTypedData } from '../src/buildOptimizeGrantsTypedData';
-import { FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN } from './fixtures/optimizeGrantsFixture';
+import { buildGrantsTypedData } from '../src/buildGrantsTypedData';
+import { FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN } from './fixtures/grantsFixture';
 
 describe('recoverSigner', () => {
   it('recovers the real signer from a signature produced the same way MetaMask would (eth_signTypedData_v4)', () => {
     const wallet = Wallet.createRandom();
-    const typedData = buildOptimizeGrantsTypedData(FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN);
+    const typedData = buildGrantsTypedData(FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN);
     const digest = hashTypedData(typedData);
 
     // signTypedData is eth-sig-util's own reference implementation of what
@@ -35,7 +35,7 @@ describe('recoverSigner', () => {
 
   it('throws when the recovered signer does not match the claimed granter', () => {
     const wallet = Wallet.createRandom();
-    const typedData = buildOptimizeGrantsTypedData(FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN);
+    const typedData = buildGrantsTypedData(FIXTURE_PARAMS, FIXTURE_SIGN_CONTEXT, FIXTURE_CHAIN);
     const digest = hashTypedData(typedData);
 
     const signatureHex = signTypedData({
