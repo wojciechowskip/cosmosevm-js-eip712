@@ -4,8 +4,8 @@ import { GrantsParams, SignContext, ChainConfig, EIP712TypedData, GrantSpec } fr
  * This is NOT a generic Cosmos-message-to-EIP712 encoder -- cosmos/evm's own
  * `eip712.WrapTxToTypedData` (Go, ~1500-2500 LOC across encoding/preprocess/
  * type-mapping files) is that, and porting it was judged not worth the risk
- * for the fixed, small set of grant kinds Polli actually needs. Instead,
- * this module hand-implements cosmos/evm's OBSERVED type-naming behavior
+ * for the fixed, small set of grant kinds this library actually supports.
+ * Instead, this module hand-implements cosmos/evm's OBSERVED type-naming behavior
  * for exactly three message shapes (`genericAuthorization`, `sendAuthorization`,
  * `feeGrant`), reverse-engineered empirically against a reference Go
  * implementation's typed-data output (a `DRY_RUN` dump of
@@ -118,9 +118,9 @@ function registerShapeTypes(
       { name: 'value', type: `TypeValueAllowanceValue${familyN}` },
       { name: 'type', type: 'string' },
     ];
-    // Always empty in Polli's flow -- the feegrant allowance is built
-    // unlimited (nil spend_limit), matching the native Keplr flow. An empty
-    // repeated Coin field renders as a bare `string[]` here, not `Coin[]`.
+    // Always empty here -- the feegrant allowance is built unlimited (nil
+    // spend_limit), matching a typical native Keplr flow. An empty repeated
+    // Coin field renders as a bare `string[]` here, not `Coin[]`.
     types[`TypeValueAllowanceValue${familyN}`] = [{ name: 'spend_limit', type: 'string[]' }];
     return;
   }

@@ -15,12 +15,11 @@ files, for arbitrary Cosmos messages. Porting that generically to JS was
 judged too large and risky a task for what's actually needed here. Instead,
 this library supports exactly **three grant kinds** -- `genericAuthorization`
 (repeatable, parametrized by msg type URL), `sendAuthorization`, and
-`feeGrant` -- combinable in any order via `GrantSpec[]`, which is what
-Polli's own product actually needs (see `defaultGrantsList` in
-`polli-frontend`'s `optimization-grants-message-builder.ts`: staking,
-transfers, redelegate, fee, withdraw -- all either `genericAuthorization`,
-`sendAuthorization`, or `feeGrant` underneath). It is deliberately not
-generalized any further than that.
+`feeGrant` -- combinable in any order via `GrantSpec[]`. That covers the
+common auto-compounding batch (a staking grant, a bounded transfer grant,
+and an unlimited feegrant, all in one signed transaction) without pulling
+in a full generic amino-JSON encoder. It is deliberately not generalized
+any further than that.
 
 ## Two real findings from building this that are worth knowing
 
@@ -116,15 +115,16 @@ matches `params.granterAddress`.
   EIP-712 type behind the scenes -- there's no cost to adding more.
 - `{ kind: 'sendAuthorization', spendLimit, allowAddress? }` -- a bank
   send authorization, capped at `spendLimit`. Omit `allowAddress` only if
-  you specifically want an unrestricted-recipient grant (a materially
-  broader permission than Polli's native flow ever issues).
+  you specifically want an unrestricted-recipient grant, which is a
+  materially broader permission than a recipient-restricted one.
 - `{ kind: 'feeGrant' }` -- an unlimited `BasicAllowance` feegrant, no
   expiry.
 
 **Not supported:** more than one `sendAuthorization` or `feeGrant` per
-call. Polli's own native (Keplr) flow never batches more than one of
-either, so this isn't a gap in practice -- just an explicit non-goal, to
-avoid building out dedup/counter logic for a case that doesn't occur.
+call. A typical native (Keplr) auto-compounding flow never batches more
+than one of either, so this isn't a gap in practice -- just an explicit
+non-goal, to avoid building out dedup/counter logic for a case that
+doesn't occur.
 
 ## What's NOT here
 

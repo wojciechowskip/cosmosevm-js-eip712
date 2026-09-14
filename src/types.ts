@@ -8,9 +8,9 @@
  * typed-data dry-run against cosmos/evm's own WrapTxToTypedData, 2026-09-14).
  *
  * `sendAuthorization` and `feeGrant` are NOT verified for more than one
- * occurrence each -- that's also all Polli's own native (Keplr) flow ever
- * batches, so a second occurrence of either is unsupported territory, not a
- * silent limitation.
+ * occurrence each -- a native Keplr-style flow typically never batches more
+ * than one of either, so a second occurrence of either is unsupported
+ * territory, not a silent limitation.
  */
 export type GrantSpec =
   | { kind: 'genericAuthorization'; msgTypeUrl: string }
@@ -31,7 +31,7 @@ export interface GrantsParams {
   granteeAddress: string;
   /** Unix seconds since epoch -- when authz grants expire. Applies to every
    * `genericAuthorization`/`sendAuthorization` entry; the feegrant allowance
-   * itself never expires, matching Polli's own native flow. */
+   * itself never expires, matching a typical native (Keplr) flow. */
   expirySeconds: number;
   grants: GrantSpec[];
 }

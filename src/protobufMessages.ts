@@ -56,8 +56,8 @@ export function buildGrantsAnyMessages(params: GrantsParams): Any[] {
 
   return params.grants.map((grant) => {
     if (grant.kind === 'feeGrant') {
-      // nil spend_limit = unlimited -- a deliberate choice matching Polli's
-      // native (Keplr) flow, not a simplification.
+      // nil spend_limit = unlimited -- a deliberate choice matching a
+      // typical native (Keplr) flow, not a simplification.
       const feeAllowance = Any.fromPartial({
         typeUrl: '/cosmos.feegrant.v1beta1.BasicAllowance',
         value: BasicAllowance.encode({ spendLimit: [] }).finish(),
