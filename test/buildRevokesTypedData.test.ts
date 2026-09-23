@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRevokesTypedData } from '../src/buildGrantsTypedData';
 import { KII_MAINNET, RevokesParams, SignContext } from '../src/types';
 import { REVOKES_FIXTURE_TYPED_DATA } from './fixtures/revokesFixture';
+import { REVOKES_FEE_FIRST_FIXTURE_TYPED_DATA } from './fixtures/revokesFeeFirstFixture';
 
 // Exactly the inputs kii-poc-evm-authz/revokedump used to produce the
 // fixture -- same granter, grantee, msg type URLs and order, same fee, gas,
@@ -72,5 +73,35 @@ describe('buildRevokesTypedData', () => {
     const built = buildRevokesTypedData(PARAMS, SIGN_CONTEXT, KII_MAINNET);
 
     expect(JSON.stringify(built)).not.toContain('expiration');
+  });
+
+  it('matches the dump for the ordering production actually sends (feegrant first)', () => {
+    // apps/web's use-revoke-grants.ts pushes `fee` before the authz
+    // categories, so the flat allowance shape is seen first and the global
+    // TypeValue counter numbers the two shapes the other way round. Every
+    // other fixture here puts the allowance last, i.e. the one ordering
+    // production never produces -- caught by the review of !171.
+    const feeFirst: RevokesParams = {
+      ...PARAMS,
+      revokes: [
+        { kind: 'revokeFeeGrant' },
+        ...PARAMS.revokes.filter((r) => r.kind !== 'revokeFeeGrant'),
+      ],
+    };
+
+    const built = buildRevokesTypedData(feeFirst, SIGN_CONTEXT, KII_MAINNET);
+
+    expect(JSON.parse(JSON.stringify(built))).toEqual(
+      JSON.parse(JSON.stringify(REVOKES_FEE_FIRST_FIXTURE_TYPED_DATA))
+    );
+    expect(built.types.TypeValue0.map((f) => f.name)).toEqual([
+      'granter',
+      'grantee',
+    ]);
+    expect(built.types.TypeValue1.map((f) => f.name)).toEqual([
+      'msg_type_url',
+      'granter',
+      'grantee',
+    ]);
   });
 });
