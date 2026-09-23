@@ -1,13 +1,13 @@
 import { Any } from 'cosmjs-types/google/protobuf/any';
 import { Coin } from 'cosmjs-types/cosmos/base/v1beta1/coin';
-import { MsgGrant } from 'cosmjs-types/cosmos/authz/v1beta1/tx';
+import { MsgGrant, MsgRevoke } from 'cosmjs-types/cosmos/authz/v1beta1/tx';
 import { GenericAuthorization } from 'cosmjs-types/cosmos/authz/v1beta1/authz';
 import { SendAuthorization } from 'cosmjs-types/cosmos/bank/v1beta1/authz';
 import { BasicAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/feegrant';
-import { MsgGrantAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/tx';
+import { MsgGrantAllowance, MsgRevokeAllowance } from 'cosmjs-types/cosmos/feegrant/v1beta1/tx';
 import { BinaryWriter, WireType } from 'cosmjs-types/binary';
 
-import { GrantsParams, GrantSpec } from './types';
+import { GrantsParams, GrantSpec, RevokesParams } from './types';
 
 /**
  * KiiChain's account pubkey type (`/cosmos.evm.crypto.v1.ethsecp256k1.PubKey`,
@@ -51,6 +51,35 @@ function buildAuthorizationAny(grant: Extract<GrantSpec, { kind: 'genericAuthori
  * signed tx must carry them -- matches buildGrantsTypedData's msg0/msg1/...
  * exactly.
  */
+/**
+ * The revoke counterpart of buildGrantsAnyMessages -- same ordering
+ * contract: index i here is msg{i} in buildRevokesTypedData's typed data,
+ * and the two must stay in lockstep or the broadcast signature will not
+ * verify against the bytes.
+ */
+export function buildRevokesAnyMessages(params: RevokesParams): Any[] {
+  return params.revokes.map((revoke) => {
+    if (revoke.kind === 'revokeFeeGrant') {
+      return Any.fromPartial({
+        typeUrl: MsgRevokeAllowance.typeUrl,
+        value: MsgRevokeAllowance.encode({
+          granter: params.granterAddress,
+          grantee: params.granteeAddress,
+        }).finish(),
+      });
+    }
+
+    return Any.fromPartial({
+      typeUrl: MsgRevoke.typeUrl,
+      value: MsgRevoke.encode({
+        granter: params.granterAddress,
+        grantee: params.granteeAddress,
+        msgTypeUrl: revoke.msgTypeUrl,
+      }).finish(),
+    });
+  });
+}
+
 export function buildGrantsAnyMessages(params: GrantsParams): Any[] {
   const expiration = timestampFromUnixSeconds(params.expirySeconds);
 

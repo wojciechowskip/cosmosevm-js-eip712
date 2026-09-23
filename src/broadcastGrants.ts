@@ -2,11 +2,17 @@ import { getBytes } from 'ethers';
 import { TxBody, AuthInfo, TxRaw } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
 import { SignMode } from 'cosmjs-types/cosmos/tx/signing/v1beta1/signing';
 
-import { GrantsParams, SignContext, ChainConfig } from './types';
-import { buildGrantsTypedData } from './buildGrantsTypedData';
+import { Any } from 'cosmjs-types/google/protobuf/any';
+
+import { GrantsParams, RevokesParams, SignContext, ChainConfig, EIP712TypedData } from './types';
+import { buildGrantsTypedData, buildRevokesTypedData } from './buildGrantsTypedData';
 import { hashTypedData } from './typedDataHash';
 import { verifySignerMatchesGranter } from './recoverSigner';
-import { buildGrantsAnyMessages, encodeEthsecp256k1PubKey } from './protobufMessages';
+import {
+  buildGrantsAnyMessages,
+  buildRevokesAnyMessages,
+  encodeEthsecp256k1PubKey,
+} from './protobufMessages';
 
 export interface BroadcastResult {
   httpStatus: number;
@@ -42,12 +48,57 @@ export async function broadcastGrants(
   chain: ChainConfig,
   signatureHex: string
 ): Promise<BroadcastResult> {
-  const typedData = buildGrantsTypedData(params, signContext, chain);
+  return broadcastSigned(
+    buildGrantsTypedData(params, signContext, chain),
+    buildGrantsAnyMessages(params),
+    params.granterAddress,
+    signContext,
+    chain,
+    signatureHex
+  );
+}
+
+/**
+ * The revoke counterpart of broadcastGrants, with the identical contract:
+ * it rebuilds the typed data and the protobuf messages itself from
+ * `params`, never trusting a caller-supplied hash or public key, and
+ * refuses to broadcast unless the signature recovers to
+ * `params.granterAddress`.
+ *
+ * Worth saying once, because it is the failure this is most likely to
+ * produce in practice: the messages are atomic, and the authz module errors
+ * on revoking an authorization that is not there. One stale entry in
+ * `params.revokes` fails the whole transaction and nothing is withdrawn.
+ * Read the granter's live grants immediately before building the params.
+ */
+export async function broadcastRevokes(
+  params: RevokesParams,
+  signContext: SignContext,
+  chain: ChainConfig,
+  signatureHex: string
+): Promise<BroadcastResult> {
+  return broadcastSigned(
+    buildRevokesTypedData(params, signContext, chain),
+    buildRevokesAnyMessages(params),
+    params.granterAddress,
+    signContext,
+    chain,
+    signatureHex
+  );
+}
+
+async function broadcastSigned(
+  typedData: EIP712TypedData,
+  messages: Any[],
+  granterAddress: string,
+  signContext: SignContext,
+  chain: ChainConfig,
+  signatureHex: string
+): Promise<BroadcastResult> {
   const digest = hashTypedData(typedData);
 
-  const { compressedPubKey } = verifySignerMatchesGranter(digest, signatureHex, params.granterAddress);
+  const { compressedPubKey } = verifySignerMatchesGranter(digest, signatureHex, granterAddress);
 
-  const messages = buildGrantsAnyMessages(params);
   const bodyBytes = TxBody.encode(TxBody.fromPartial({ messages, memo: '' })).finish();
 
   const authInfoBytes = AuthInfo.encode(

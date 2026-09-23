@@ -24,6 +24,38 @@ export type GrantSpec =
     }
   | { kind: 'feeGrant' };
 
+/**
+ * One revocation to include in the batch, in the order it should appear in
+ * the signed transaction. `revokeAuthorization` may repeat (one per authz
+ * grant being withdrawn) -- every MsgRevoke carries the identical
+ * {msg_type_url, granter, grantee} field schema regardless of which type URL
+ * is inside it, so repeats collapse onto one type definition, exactly as
+ * repeated GenericAuthorization grants do (confirmed in the same way: a
+ * dry-run dump of cosmos/evm's own WrapTxToTypedData, 2026-09-23, four
+ * MsgRevoke messages all sharing TypeMsgRevoke0/TypeValue0).
+ *
+ * Revocation is NOT the mirror image of GrantSpec and deliberately does not
+ * reuse it: authz revokes by `msg_type_url` alone, so a `sendAuthorization`
+ * grant is withdrawn with
+ * `{kind: 'revokeAuthorization', msgTypeUrl: '/cosmos.bank.v1beta1.MsgSend'}`
+ * -- its spend limit and allow list play no part. The feegrant allowance has
+ * its own message, hence its own kind.
+ */
+export type RevokeSpec =
+  | { kind: 'revokeAuthorization'; msgTypeUrl: string }
+  | { kind: 'revokeFeeGrant' };
+
+export interface RevokesParams {
+  /** bech32 kii1... address of the account that granted the authority */
+  granterAddress: string;
+  /** bech32 kii1... address the grants were issued to */
+  granteeAddress: string;
+  /** Revoking something that is not actually granted FAILS THE WHOLE
+   * transaction -- these messages are atomic. Read the granter's live grants
+   * first and pass only the ones present. */
+  revokes: RevokeSpec[];
+}
+
 export interface GrantsParams {
   /** bech32 kii1... address of the account granting authority */
   granterAddress: string;

@@ -1,4 +1,12 @@
-import { GrantsParams, SignContext, ChainConfig, EIP712TypedData, GrantSpec } from './types';
+import {
+  GrantsParams,
+  RevokesParams,
+  SignContext,
+  ChainConfig,
+  EIP712TypedData,
+  GrantSpec,
+  RevokeSpec,
+} from './types';
 
 /**
  * This is NOT a generic Cosmos-message-to-EIP712 encoder -- cosmos/evm's own
@@ -53,23 +61,29 @@ import { GrantsParams, SignContext, ChainConfig, EIP712TypedData, GrantSpec } fr
 
 const AKII_DENOM = 'akii';
 
-type Shape = GrantSpec['kind'];
-type Envelope = 'grant' | 'grantAllowance';
+type Shape = GrantSpec['kind'] | RevokeSpec['kind'];
+type Envelope = 'grant' | 'grantAllowance' | 'revoke' | 'revokeAllowance';
 
 const ENVELOPE_BY_SHAPE: Record<Shape, Envelope> = {
   genericAuthorization: 'grant',
   sendAuthorization: 'grant',
   feeGrant: 'grantAllowance',
+  revokeAuthorization: 'revoke',
+  revokeFeeGrant: 'revokeAllowance',
 };
 
 const ENVELOPE_TYPE_PREFIX: Record<Envelope, string> = {
   grant: 'TypeMsgGrant',
   grantAllowance: 'TypeMsgGrantAllowance',
+  revoke: 'TypeMsgRevoke',
+  revokeAllowance: 'TypeMsgRevokeAllowance',
 };
 
 const ENVELOPE_AMINO_TYPE: Record<Envelope, string> = {
   grant: 'cosmos-sdk/MsgGrant',
   grantAllowance: 'cosmos-sdk/MsgGrantAllowance',
+  revoke: 'cosmos-sdk/MsgRevoke',
+  revokeAllowance: 'cosmos-sdk/MsgRevokeAllowance',
 };
 
 /** Assigns sequential indices in first-seen order -- the shared mechanism
@@ -107,6 +121,31 @@ function registerShapeTypes(
     { name: 'value', type: `TypeValue${valueN}` },
     { name: 'type', type: 'string' },
   ];
+
+  // Both revoke shapes are flat -- no nested authorization/allowance type
+  // chain, so they register one TypeValue<N> and stop. Field ORDER here is
+  // the empirically captured one: `msg_type_url` comes FIRST, before
+  // granter and grantee. That is neither proto field order (granter=1,
+  // grantee=2, msg_type_url=3) nor alphabetical, so it is not derivable by
+  // reasoning -- it was read off a dry-run of cosmos/evm's own
+  // WrapTxToTypedData (2026-09-23, kii-poc-evm-authz/revokedump). Getting it
+  // wrong changes the hash and the chain rejects the signature.
+  if (shape === 'revokeAuthorization') {
+    types[`TypeValue${valueN}`] = [
+      { name: 'msg_type_url', type: 'string' },
+      { name: 'granter', type: 'string' },
+      { name: 'grantee', type: 'string' },
+    ];
+    return;
+  }
+
+  if (shape === 'revokeFeeGrant') {
+    types[`TypeValue${valueN}`] = [
+      { name: 'granter', type: 'string' },
+      { name: 'grantee', type: 'string' },
+    ];
+    return;
+  }
 
   if (shape === 'feeGrant') {
     types[`TypeValue${valueN}`] = [
@@ -214,6 +253,73 @@ export function buildGrantsTypedData(
 ): EIP712TypedData {
   const expiration = formatExpiration(params.expirySeconds);
 
+  return buildTypedDataForSpecs(
+    params.grants,
+    (grant) => buildGrantValue(grant, params, expiration),
+    signContext,
+    chain
+  );
+}
+
+function buildRevokeValue(
+  revoke: RevokeSpec,
+  params: RevokesParams
+): Record<string, unknown> {
+  if (revoke.kind === 'revokeFeeGrant') {
+    return {
+      type: ENVELOPE_AMINO_TYPE.revokeAllowance,
+      value: {
+        granter: params.granterAddress,
+        grantee: params.granteeAddress,
+      },
+    };
+  }
+
+  return {
+    type: ENVELOPE_AMINO_TYPE.revoke,
+    value: {
+      msg_type_url: revoke.msgTypeUrl,
+      granter: params.granterAddress,
+      grantee: params.granteeAddress,
+    },
+  };
+}
+
+/**
+ * Builds the EIP-712 typed-data payload for withdrawing an arbitrary,
+ * caller-chosen set of previously issued grants (see RevokeSpec in
+ * ./types). Pure and synchronous, exactly like buildGrantsTypedData, and
+ * sharing its type-naming machinery -- so the structural-dedup rule
+ * documented at the top of this file applies identically here.
+ *
+ * There is no expiry: a revocation is instantaneous and carries no
+ * timestamp, which is why RevokesParams has no `expirySeconds`.
+ */
+export function buildRevokesTypedData(
+  params: RevokesParams,
+  signContext: SignContext,
+  chain: ChainConfig
+): EIP712TypedData {
+  return buildTypedDataForSpecs(
+    params.revokes,
+    (revoke) => buildRevokeValue(revoke, params),
+    signContext,
+    chain
+  );
+}
+
+/**
+ * The shared body of both public builders: the fee/memo envelope, the two
+ * dedup counters, and the msg0/msg1/... walk. Only the per-message `value`
+ * object differs between grants and revokes, so that is the one thing the
+ * caller supplies.
+ */
+function buildTypedDataForSpecs<S extends { kind: Shape }>(
+  specs: S[],
+  buildValue: (spec: S) => Record<string, unknown>,
+  signContext: SignContext,
+  chain: ChainConfig
+): EIP712TypedData {
   const types: EIP712TypedData['types'] = {
     EIP712Domain: [
       { name: 'name', type: 'string' },
@@ -256,11 +362,13 @@ export function buildGrantsTypedData(
   const familyIndex: Record<Envelope, FirstSeenIndexer<Shape>> = {
     grant: new FirstSeenIndexer<Shape>(),
     grantAllowance: new FirstSeenIndexer<Shape>(),
+    revoke: new FirstSeenIndexer<Shape>(),
+    revokeAllowance: new FirstSeenIndexer<Shape>(),
   };
   const registeredShapes = new Set<Shape>();
 
-  params.grants.forEach((grant, msgIndex) => {
-    const shape = grant.kind;
+  specs.forEach((spec, msgIndex) => {
+    const shape = spec.kind;
     const envelope = ENVELOPE_BY_SHAPE[shape];
     const valueN = globalValueIndex.indexOf(shape);
     const familyN = familyIndex[envelope].indexOf(shape);
@@ -272,7 +380,7 @@ export function buildGrantsTypedData(
 
     const msgKey = `msg${msgIndex}`;
     txFields.push({ name: msgKey, type: `${ENVELOPE_TYPE_PREFIX[envelope]}${familyN}` });
-    message[msgKey] = buildGrantValue(grant, params, expiration);
+    message[msgKey] = buildValue(spec);
   });
 
   types.Tx = txFields;

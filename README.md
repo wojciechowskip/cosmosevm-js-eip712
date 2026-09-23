@@ -126,6 +126,33 @@ than one of either, so this isn't a gap in practice -- just an explicit
 non-goal, to avoid building out dedup/counter logic for a case that
 doesn't occur.
 
+### Revoking: `RevokeSpec` kinds
+
+`buildRevokesTypedData` / `broadcastRevokes` withdraw grants issued
+earlier. Same machinery, same signing flow, different messages
+(`MsgRevoke` and `MsgRevokeAllowance`), and no expiry -- a revocation is
+instantaneous, so `RevokesParams` has no `expirySeconds`.
+
+- `{ kind: 'revokeAuthorization', msgTypeUrl: string }` -- **repeatable.**
+  Withdraws the authz grant for that message type. Note authz revokes by
+  `msg_type_url` ALONE: a `sendAuthorization` is withdrawn with
+  `msgTypeUrl: '/cosmos.bank.v1beta1.MsgSend'`, and its spend limit and
+  allow list play no part. That is why `RevokeSpec` is not the mirror
+  image of `GrantSpec`.
+- `{ kind: 'revokeFeeGrant' }` -- withdraws the feegrant allowance.
+
+**The messages are atomic, and the authz module errors on revoking an
+authorization that is not there** -- so one stale entry fails the whole
+transaction and nothing is withdrawn. Read the granter's live grants
+immediately before building the params.
+
+The EIP-712 field order for `MsgRevoke` is `msg_type_url`, `granter`,
+`grantee` -- neither alphabetical nor the proto field order (where
+`msg_type_url` is third). It was captured from a dry run of cosmos/evm's
+own `WrapTxToTypedData`, the same way the grant shapes were, and
+`test/buildRevokesTypedData.test.ts` compares against that dump byte for
+byte. Do not "tidy" it.
+
 ## What's NOT here
 
 - **Delegate** (`MsgDelegate`) as a directly-signed message -- not needed
@@ -142,7 +169,7 @@ doesn't occur.
   popup in a real browser -- that's still open.
 - **A dedicated Kii/Cosmos-EVM chain-agnostic config for other chains.**
   `KII_MAINNET` is the only provided `ChainConfig`.
-- **Any authz/feegrant kind beyond the three `GrantSpec` variants above**
+- **Any authz/feegrant kind beyond the `GrantSpec` / `RevokeSpec` variants above**
   (e.g. staking `Deny` authorizations, periodic feegrant allowances). Add
   one only when a real caller needs it, following the same
   capture-and-verify process this library was built with.
